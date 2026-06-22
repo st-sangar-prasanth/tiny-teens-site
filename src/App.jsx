@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 const whatsappNumber = '917373323633';
 
@@ -9,7 +9,7 @@ const categories = [
   { title: 'Everyday Casuals', subtitle: 'Play-ready picks for daily fun' }
 ];
 
-const products = [
+const defaultProducts = [
   {
     name: 'Floral Frill Dress',
     price: 'INR 999',
@@ -47,6 +47,8 @@ const products = [
   }
 ];
 
+const storageKey = 'tiny-teens-products';
+
 const testimonials = [
   {
     text: 'Great fabric quality and super cute designs. My daughter loved every dress!',
@@ -59,13 +61,165 @@ const testimonials = [
 ];
 
 export default function App() {
+  const [products, setProducts] = useState(() => {
+    if (typeof window === 'undefined') {
+      return defaultProducts;
+    }
+
+    const saved = window.localStorage.getItem(storageKey);
+    if (!saved) {
+      return defaultProducts;
+    }
+
+    try {
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : defaultProducts;
+    } catch {
+      return defaultProducts;
+    }
+  });
+  const [isAdmin, setIsAdmin] = useState(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    return window.location.hash === '#admin';
+  });
+  const [status, setStatus] = useState('');
+
+  useEffect(() => {
+    const onHashChange = () => setIsAdmin(window.location.hash === '#admin');
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  const updateProduct = (index, field, value) => {
+    setProducts((current) =>
+      current.map((item, i) => (i === index ? { ...item, [field]: value } : item))
+    );
+  };
+
+  const addProduct = () => {
+    const nextIndex = products.length + 1;
+    setProducts((current) => [
+      ...current,
+      {
+        name: `New Product ${nextIndex}`,
+        price: 'INR 0',
+        badge: 'New',
+        image: '/images/one.jpg'
+      }
+    ]);
+    setStatus('Product added. Save changes to publish.');
+  };
+
+  const removeProduct = (index) => {
+    setProducts((current) => current.filter((_, i) => i !== index));
+    setStatus('Product removed. Save changes to publish.');
+  };
+
+  const saveProducts = () => {
+    window.localStorage.setItem(storageKey, JSON.stringify(products));
+    setStatus('Changes saved. Storefront is updated.');
+  };
+
+  const resetProducts = () => {
+    setProducts(defaultProducts);
+    window.localStorage.removeItem(storageKey);
+    setStatus('Defaults restored.');
+  };
+
+  if (isAdmin) {
+    return (
+      <div className="page admin-page">
+        <header className="header">
+          <div className="brand">Tiny Teens Admin</div>
+          <div className="header-actions">
+            <a className="admin-link" href="#">
+              Back to Store
+            </a>
+          </div>
+        </header>
+
+        <p className="admin-help">Update products here, then click Save Changes.</p>
+
+        <div className="admin-actions">
+          <button className="btn-primary" type="button" onClick={addProduct}>
+            Add Product
+          </button>
+          <button className="btn-secondary" type="button" onClick={saveProducts}>
+            Save Changes
+          </button>
+          <button className="btn-secondary" type="button" onClick={resetProducts}>
+            Reset Defaults
+          </button>
+        </div>
+
+        {status && <p className="admin-status">{status}</p>}
+
+        <section className="admin-product-list">
+          {products.map((product, index) => (
+            <article key={`${product.name}-${index}`} className="admin-product-card">
+              <div className="admin-card-head">
+                <h3>Product {index + 1}</h3>
+                <button
+                  className="btn-secondary admin-link danger"
+                  type="button"
+                  onClick={() => removeProduct(index)}
+                >
+                  Remove
+                </button>
+              </div>
+              <label>
+                Name
+                <input
+                  type="text"
+                  value={product.name}
+                  onChange={(event) => updateProduct(index, 'name', event.target.value)}
+                />
+              </label>
+              <label>
+                Price
+                <input
+                  type="text"
+                  value={product.price}
+                  onChange={(event) => updateProduct(index, 'price', event.target.value)}
+                />
+              </label>
+              <label>
+                Badge
+                <input
+                  type="text"
+                  value={product.badge}
+                  onChange={(event) => updateProduct(index, 'badge', event.target.value)}
+                />
+              </label>
+              <label>
+                Image URL
+                <input
+                  type="text"
+                  value={product.image}
+                  onChange={(event) => updateProduct(index, 'image', event.target.value)}
+                />
+              </label>
+            </article>
+          ))}
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="page">
       <header className="header">
         <div className="brand">Tiny Teens</div>
-        <a className="whatsapp-btn" href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noreferrer">
-          Order on WhatsApp
-        </a>
+        <div className="header-actions">
+          <a className="admin-link" href="#admin">
+            Admin
+          </a>
+          <a className="whatsapp-btn" href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noreferrer">
+            Order on WhatsApp
+          </a>
+        </div>
       </header>
 
       <section className="hero">

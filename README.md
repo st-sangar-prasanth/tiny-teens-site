@@ -8,6 +8,7 @@ A modern, mobile-friendly storefront website for **Tiny Teens**, inspired by pre
 - Product categories and popular product cards
 - WhatsApp ordering integration (`7373323633`)
 - Testimonials and responsive design
+- Built-in no-code admin panel for product updates
 
 ## Tech stack
 
@@ -32,6 +33,18 @@ npm run preview
 ```
 
 Build output is generated under `dist/`.
+
+## No-code admin panel
+
+1. Open the site.
+2. Click `Admin` in the top-right corner (or open `/#admin`).
+3. Edit product name, price, badge, and image URL.
+4. Click `Save Changes`.
+
+Notes:
+
+- Updates are saved in browser `localStorage` for quick non-technical edits.
+- Use `Reset Defaults` in admin to restore the original product list.
 
 ## Deploy as a live website
 

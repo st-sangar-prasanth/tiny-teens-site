@@ -30,6 +30,12 @@ a {
   margin-bottom: 24px;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .brand {
   font-size: 1.8rem;
   font-weight: 800;
@@ -88,6 +94,9 @@ h1 {
   padding: 11px 16px;
   border-radius: 10px;
   font-weight: 700;
+  border: 0;
+  font-size: 0.95rem;
+  cursor: pointer;
 }
 
 .btn-primary {
@@ -98,6 +107,15 @@ h1 {
 .btn-secondary {
   border: 1px solid #d1d5db;
   background: #fff;
+}
+
+.admin-link {
+  color: #1f2a37;
+  font-weight: 700;
+}
+
+.admin-link.danger {
+  color: #dc2626;
 }
 
 .hero-image {
@@ -244,6 +262,67 @@ h1 {
 .footer a {
   color: #20c05c;
   font-weight: 800;
+}
+
+.admin-page {
+  max-width: 980px;
+}
+
+.admin-help {
+  margin-top: 0;
+  color: #4b5563;
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.admin-status {
+  margin: 8px 0 18px;
+  font-weight: 600;
+  color: #047857;
+}
+
+.admin-product-list {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-product-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.admin-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.admin-card-head h3 {
+  margin: 0;
+}
+
+.admin-product-card label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: #374151;
+}
+
+.admin-product-card input {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 0.95rem;
 }
 
 @media (max-width: 950px) {
