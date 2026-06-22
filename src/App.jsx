@@ -44,7 +44,15 @@ const defaultProducts = [
     badge: 'Limited',
     image:
       '/images/one.jpg'
+  },
+  {
+    name: 'Shorts - pyjamas',
+    price: 'INR 150',
+    badge: 'Limited',
+    image:
+      '/images/two.jpg'
   }
+];
 ];
 
 const storageKey = 'tiny-teens-products';
