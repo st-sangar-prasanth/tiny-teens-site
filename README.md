@@ -1,80 +1,79 @@
 # Tiny Teens Website
 
-A modern, mobile-friendly storefront website for **Tiny Teens**, inspired by premium kids fashion layouts.
+A mobile-friendly storefront for **Tiny Teens** with a password-protected admin panel.
 
-## Features
+## What is included
 
-- Hero section with strong call-to-action
-- Product categories and popular product cards
-- WhatsApp ordering integration (`7373323633`)
-- Testimonials and responsive design
-- Built-in no-code admin panel for product updates
+- Public storefront with product listing and WhatsApp enquiry
+- Admin panel at `/#admin`
+- Password login for admin actions
+- Product data stored in SQLite database (`data/store.db`)
+- Image uploads stored in `public/uploads/` and referenced from DB
 
 ## Tech stack
 
-- React 18
-- Vite 5
-- Plain CSS
+- React 18 + Vite 5 (frontend)
+- Express 4 API server
+- SQLite via `better-sqlite3`
+- JWT auth for admin session
+- `multer` for image uploads
 
-## Local run
+## Setup
+
+1. Install dependencies
+2. Create `.env` from `.env.example`
+3. Set your admin password
 
 ```bash
 npm install
+cp .env.example .env
+```
+
+Update `.env` and change at least:
+
+- `ADMIN_PASSWORD`
+- `ADMIN_JWT_SECRET`
+
+## Run locally (frontend + API)
+
+```bash
+npm run dev:full
+```
+
+- Frontend: `http://localhost:5173`
+- API: `http://localhost:4000`
+
+You can also run separately:
+
+```bash
+npm run dev:api
 npm run dev
 ```
 
-Open the printed local URL (usually `http://localhost:5173`).
+## Admin usage
 
-## Production build
+1. Open the site and click `Admin`.
+2. Enter your admin password.
+3. Edit product fields.
+4. Optional: upload an image file for each product.
+5. Click `Save Changes`.
+
+All product updates (including new products and image URLs) are saved in DB.
+
+## Smoke test harness
+
+Run this while API server is running:
+
+```bash
+npm run smoke:test
+```
+
+It checks `/api/products` and prints loaded product count.
+
+## Build frontend
 
 ```bash
 npm run build
 npm run preview
 ```
 
-Build output is generated under `dist/`.
-
-## No-code admin panel
-
-1. Open the site.
-2. Click `Admin` in the top-right corner (or open `/#admin`).
-3. Edit product name, price, badge, and image URL.
-4. Click `Save Changes`.
-
-Notes:
-
-- Updates are saved in browser `localStorage` for quick non-technical edits.
-- Use `Reset Defaults` in admin to restore the original product list.
-
-## Deploy as a live website
-
-### Option 1: Netlify (easy)
-
-1. Push this folder to GitHub.
-2. In Netlify, choose **Add new site > Import an existing project**.
-3. Build command: `npm run build`
-4. Publish directory: `dist`
-5. Deploy.
-
-### Option 2: Vercel (easy)
-
-1. Push to GitHub.
-2. Import project in Vercel.
-3. Framework preset: `Vite`
-4. Deploy.
-
-### Option 3: GitHub Pages
-
-Use a Vite + GitHub Pages deployment workflow, or deploy `dist/` via a Pages action.
-
-## WhatsApp link format
-
-This site uses:
-
-- `https://wa.me/917373323633`
-
-For prefilled messages:
-
-- `https://wa.me/917373323633?text=Hi%20Tiny%20Teens`
-
-# tiny-teens-site

@@ -9,7 +9,7 @@ const categories = [
   { title: 'Everyday Casuals', subtitle: 'Play-ready picks for daily fun' }
 ];
 
-const defaultProducts = [
+const fallbackProducts = [
   {
     name: 'Floral Frill Dress',
     price: 'INR 999',
@@ -54,8 +54,6 @@ const defaultProducts = [
   }
 ];
 
-const storageKey = 'tiny-teens-products';
-
 const testimonials = [
   {
     text: 'Great fabric quality and super cute designs. My daughter loved every dress!',
@@ -68,30 +66,39 @@ const testimonials = [
 ];
 
 export default function App() {
-  const [products, setProducts] = useState(() => {
-    if (typeof window === 'undefined') {
-      return defaultProducts;
-    }
-
-    const saved = window.localStorage.getItem(storageKey);
-    if (!saved) {
-      return defaultProducts;
-    }
-
-    try {
-      const parsed = JSON.parse(saved);
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : defaultProducts;
-    } catch {
-      return defaultProducts;
-    }
-  });
+  const [products, setProducts] = useState(fallbackProducts);
   const [isAdmin, setIsAdmin] = useState(() => {
     if (typeof window === 'undefined') {
       return false;
     }
     return window.location.hash === '#admin';
   });
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [adminToken, setAdminToken] = useState('');
+  const [password, setPassword] = useState('');
+  const [draftProducts, setDraftProducts] = useState([]);
+  const [removedIds, setRemovedIds] = useState([]);
   const [status, setStatus] = useState('');
+
+  const loadProducts = async () => {
+    try {
+      setLoadingProducts(true);
+      const response = await fetch('/api/products');
+      if (!response.ok) {
+        throw new Error('Failed to fetch products');
+      }
+      const data = await response.json();
+      const nextProducts = Array.isArray(data.products) && data.products.length > 0
+        ? data.products
+        : fallbackProducts;
+      setProducts(nextProducts);
+    } catch {
+      setProducts(fallbackProducts);
+      setStatus('Could not load products from API. Showing fallback data.');
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
 
   useEffect(() => {
     const onHashChange = () => setIsAdmin(window.location.hash === '#admin');
@@ -99,40 +106,137 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
-  const updateProduct = (index, field, value) => {
-    setProducts((current) =>
+  useEffect(() => {
+    loadProducts();
+  }, []);
+
+  useEffect(() => {
+    if (isAdmin) {
+      // Force password entry each time admin page is opened.
+      setAdminToken('');
+      setPassword('');
+      setRemovedIds([]);
+      setDraftProducts(
+        products.map((item, index) => ({
+          id: item.id || null,
+          tempId: `temp-${item.id || index}`,
+          name: item.name || '',
+          price: item.price || '',
+          badge: item.badge || '',
+          image: item.image || '',
+          imageFile: null
+        }))
+      );
+      setStatus('');
+    }
+  }, [isAdmin, products]);
+
+  const updateDraftProduct = (index, field, value) => {
+    setDraftProducts((current) =>
       current.map((item, i) => (i === index ? { ...item, [field]: value } : item))
     );
   };
 
   const addProduct = () => {
-    const nextIndex = products.length + 1;
-    setProducts((current) => [
+    setDraftProducts((current) => [
       ...current,
       {
-        name: `New Product ${nextIndex}`,
+        id: null,
+        tempId: `temp-new-${Date.now()}`,
+        name: `New Product ${current.length + 1}`,
         price: 'INR 0',
         badge: 'New',
-        image: '/images/one.jpg'
+        image: '/images/one.jpg',
+        imageFile: null
       }
     ]);
     setStatus('Product added. Save changes to publish.');
   };
 
   const removeProduct = (index) => {
-    setProducts((current) => current.filter((_, i) => i !== index));
+    setDraftProducts((current) => {
+      const item = current[index];
+      if (item?.id) {
+        setRemovedIds((existing) => [...existing, item.id]);
+      }
+      return current.filter((_, i) => i !== index);
+    });
     setStatus('Product removed. Save changes to publish.');
   };
 
-  const saveProducts = () => {
-    window.localStorage.setItem(storageKey, JSON.stringify(products));
-    setStatus('Changes saved. Storefront is updated.');
+  const loginAdmin = async (event) => {
+    event.preventDefault();
+    setStatus('Checking password...');
+    try {
+      const response = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      });
+      if (!response.ok) {
+        throw new Error('Invalid password');
+      }
+      const data = await response.json();
+      setAdminToken(data.token || '');
+      setPassword('');
+      setStatus('Login successful. You can now edit products.');
+    } catch {
+      setStatus('Invalid admin password.');
+    }
   };
 
-  const resetProducts = () => {
-    setProducts(defaultProducts);
-    window.localStorage.removeItem(storageKey);
-    setStatus('Defaults restored.');
+  const saveProducts = async () => {
+    if (!adminToken) {
+      setStatus('Please login with admin password first.');
+      return;
+    }
+
+    try {
+      setStatus('Saving changes...');
+
+      for (const id of removedIds) {
+        const response = await fetch(`/api/admin/products/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${adminToken}` }
+        });
+        if (!response.ok && response.status !== 404) {
+          throw new Error('Delete failed');
+        }
+      }
+
+      for (const product of draftProducts) {
+        if (!product.name || !product.price || !product.badge) {
+          throw new Error('Fill all product fields before saving');
+        }
+
+        const form = new FormData();
+        form.append('name', product.name);
+        form.append('price', product.price);
+        form.append('badge', product.badge);
+        form.append('image', product.image);
+        if (product.imageFile) {
+          form.append('imageFile', product.imageFile);
+        }
+
+        const endpoint = product.id ? `/api/admin/products/${product.id}` : '/api/admin/products';
+        const method = product.id ? 'PUT' : 'POST';
+
+        const response = await fetch(endpoint, {
+          method,
+          headers: { Authorization: `Bearer ${adminToken}` },
+          body: form
+        });
+        if (!response.ok) {
+          throw new Error('Save failed');
+        }
+      }
+
+      await loadProducts();
+      setRemovedIds([]);
+      setStatus('Changes saved to database.');
+    } catch {
+      setStatus('Save failed. Please re-login and check all fields.');
+    }
   };
 
   if (isAdmin) {
@@ -147,70 +251,97 @@ export default function App() {
           </div>
         </header>
 
-        <p className="admin-help">Update products here, then click Save Changes.</p>
+        <p className="admin-help">Login to edit products stored in database.</p>
 
-        <div className="admin-actions">
-          <button className="btn-primary" type="button" onClick={addProduct}>
-            Add Product
-          </button>
-          <button className="btn-secondary" type="button" onClick={saveProducts}>
-            Save Changes
-          </button>
-          <button className="btn-secondary" type="button" onClick={resetProducts}>
-            Reset Defaults
-          </button>
-        </div>
+        {!adminToken ? (
+          <form className="admin-login-card" onSubmit={loginAdmin}>
+            <h3>Admin Login</h3>
+            <label>
+              Password
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+              />
+            </label>
+            <button className="btn-primary" type="submit">
+              Login
+            </button>
+          </form>
+        ) : (
+          <>
+            <div className="admin-actions">
+              <button className="btn-primary" type="button" onClick={addProduct}>
+                Add Product
+              </button>
+              <button className="btn-secondary" type="button" onClick={saveProducts}>
+                Save Changes
+              </button>
+            </div>
+
+            <section className="admin-product-list">
+              {draftProducts.map((product, index) => (
+                <article key={product.id || product.tempId} className="admin-product-card">
+                  <div className="admin-card-head">
+                    <h3>Product {index + 1}</h3>
+                    <button
+                      className="btn-secondary admin-link danger"
+                      type="button"
+                      onClick={() => removeProduct(index)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <label>
+                    Name
+                    <input
+                      type="text"
+                      value={product.name}
+                      onChange={(event) => updateDraftProduct(index, 'name', event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Price
+                    <input
+                      type="text"
+                      value={product.price}
+                      onChange={(event) => updateDraftProduct(index, 'price', event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Badge
+                    <input
+                      type="text"
+                      value={product.badge}
+                      onChange={(event) => updateDraftProduct(index, 'badge', event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Image URL
+                    <input
+                      type="text"
+                      value={product.image}
+                      onChange={(event) => updateDraftProduct(index, 'image', event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Or Upload Image
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) =>
+                        updateDraftProduct(index, 'imageFile', event.target.files?.[0] || null)
+                      }
+                    />
+                  </label>
+                </article>
+              ))}
+            </section>
+          </>
+        )}
 
         {status && <p className="admin-status">{status}</p>}
-
-        <section className="admin-product-list">
-          {products.map((product, index) => (
-            <article key={`${product.name}-${index}`} className="admin-product-card">
-              <div className="admin-card-head">
-                <h3>Product {index + 1}</h3>
-                <button
-                  className="btn-secondary admin-link danger"
-                  type="button"
-                  onClick={() => removeProduct(index)}
-                >
-                  Remove
-                </button>
-              </div>
-              <label>
-                Name
-                <input
-                  type="text"
-                  value={product.name}
-                  onChange={(event) => updateProduct(index, 'name', event.target.value)}
-                />
-              </label>
-              <label>
-                Price
-                <input
-                  type="text"
-                  value={product.price}
-                  onChange={(event) => updateProduct(index, 'price', event.target.value)}
-                />
-              </label>
-              <label>
-                Badge
-                <input
-                  type="text"
-                  value={product.badge}
-                  onChange={(event) => updateProduct(index, 'badge', event.target.value)}
-                />
-              </label>
-              <label>
-                Image URL
-                <input
-                  type="text"
-                  value={product.image}
-                  onChange={(event) => updateProduct(index, 'image', event.target.value)}
-                />
-              </label>
-            </article>
-          ))}
-        </section>
       </div>
     );
   }
@@ -270,21 +401,25 @@ export default function App() {
             View full catalog on WhatsApp
           </a>
         </div>
-        <div className="product-grid">
-          {products.map((product) => (
-            <article key={product.name} className="product-card">
-              <img src={product.image} alt={product.name} />
-              <div className="product-info">
-                <span className="badge">{product.badge}</span>
-                <h3>{product.name}</h3>
-                <p>{product.price}</p>
-                <a href={`https://wa.me/${whatsappNumber}?text=Hi%20Tiny%20Teens,%20I%20want%20to%20buy%20${encodeURIComponent(product.name)}`} target="_blank" rel="noreferrer">
-                  Enquire Now
-                </a>
-              </div>
-            </article>
-          ))}
-        </div>
+        {loadingProducts ? (
+          <p>Loading products...</p>
+        ) : (
+          <div className="product-grid">
+            {products.map((product) => (
+              <article key={product.id || product.name} className="product-card">
+                <img src={product.image} alt={product.name} />
+                <div className="product-info">
+                  <span className="badge">{product.badge}</span>
+                  <h3>{product.name}</h3>
+                  <p>{product.price}</p>
+                  <a href={`https://wa.me/${whatsappNumber}?text=Hi%20Tiny%20Teens,%20I%20want%20to%20buy%20${encodeURIComponent(product.name)}`} target="_blank" rel="noreferrer">
+                    Enquire Now
+                  </a>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="section testimonials">
