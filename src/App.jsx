@@ -53,7 +53,6 @@ const defaultProducts = [
       '/images/two.jpg'
   }
 ];
-];
 
 const storageKey = 'tiny-teens-products';
 
